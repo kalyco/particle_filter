@@ -4,7 +4,7 @@ import random
 from matplotlib import pyplot as plt
 import math
 
-from particle_filter import *
+from particle_filter import ParticleFilter
 
 def rotateImageToCenter(img, angle):
     img_center = tuple([img.shape[0]/2, img.shape[1]/2])
@@ -16,7 +16,7 @@ def rotateImageToCenter(img, angle):
 def main():
     img = cv.imread('MarioMap.png')
     cImg = rotateImageToCenter(img, 0)
-    pf = Filter('mario', cImg)
+    pf = ParticleFilter('mario', cImg)
     pf.draw_world()
     
     # constant= cv2.copyMakeBorder(img,20,20,20,20,cv2.BORDER_CONSTANT,value=BLUE)
