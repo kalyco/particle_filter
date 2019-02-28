@@ -41,27 +41,32 @@ class ParticleFilter():
 		return particles
 
 	def draw_world(self):
-		cv2.namedWindow(self.name, cv2.WINDOW_NORMAL)
-		cv2.resizeWindow(self.name, self.cols, self.rows)
-		cv2.imshow(self.name, self.img)
-		cv2.waitKey(0)
+			cv2.namedWindow(self.name, cv2.WINDOW_NORMAL)
+			cv2.resizeWindow(self.name, self.cols, self.rows)
+			self.get_measurement()
+			cv2.imshow(self.name, self.img)
+			cv2.waitKey(0)
+			# self.make_moves()
 
-	# TODO: Where I leave off
 	def get_measurement(self):
-		x_1, x_2 = self.state[0][0], self.state[0][1]
-		y_1, y_2 = self.state[1][0], self.state[1][1]
-		imCrop = self.img[x_1:x_2+IMAGE[0], y_1:y_2+IMAGE[1]]
+		v = self.iMap.offset([
+			[self.state[0][0], self.state[0][1]],
+			[self.state[1][0], self.state[1][1]],
+		])
+		self.img[v[0][0]:v[0][1]+IMAGE[0], v[1][0]:v[1][0]+IMAGE[1]] = [0, 0 ,0]
 		# cv2.imshow("crop", imCrop)
 		# cv2.waitKey(1)
 		# cv2.destroyAllWindows()
 
 	def resample(self):
 		for p in self.X_t:
-			self.img[p[0]:p[0]+10, p[1]:p[1]+10] = self.orig_img[p[0]:p[0]+10, p[1]:p[1]+10]
+			self.img[p[0]:p[0]+10, p[1]:p[1]+10] = self.orig_img[p[0]:p[0]+10, p[1]:p[1]+10] = [100, 100, 100]
+		self.distribute_particles_randomly()
+
 
 	def make_moves(self):
-		for t in range(5):
-			time.sleep(2)
+		# for t in range(5):
+			time.sleep(5)
 			self.resample()
 		# 	self.get_measurement()
 		# 	self.draw_world()
