@@ -18,6 +18,7 @@ def main():
 	cImg = rotateImageToCenter(img, 0)
 	pf = ParticleFilter('mario', cImg)
 	pf.draw_world()
+	pf.get_measurement()
 	
 	# constant= cv2.copyMakeBorder(img,20,20,20,20,cv2.BORDER_CONSTANT,value=BLUE)
 	# plt.subplot(231),plt.imshow(constant,'gray'),plt.title('Mario World')

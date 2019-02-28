@@ -1,0 +1,4 @@
+{
+    "python.pythonPath": "OpenCV-3.4.4-py3/bin/python3",
+    "python.linting.enabled": false
+}
