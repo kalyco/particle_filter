@@ -35,12 +35,16 @@ class ParticleFilter():
 		s = self.iMap.selection(row, col, DISTANCE_UNIT)
 		self.img[s[0][0]:s[0][1], s[1][0]:s[1][1]] = [74, 69, 255]
 		self.state = s
+		cv2.circle(
+			self.img,
+			(int(s[1][0]+DISTANCE_UNIT/2),int(s[0][0]+DISTANCE_UNIT/2)),
+			int(2*(s[1][1]-s[1][0])),
+			(0,0,0),
+			thickness=4)
 
 	def draw_world(self):
 		self.action_step()
-		self.get_measurement(self.state)
 		self.compare_grams()
-		# self.ref_histogram(self.measurement)
 		while True:
 			cv2.namedWindow(self.name, cv2.WINDOW_NORMAL)
 			cv2.resizeWindow(self.name, 1000, 1500)
@@ -54,8 +58,10 @@ class ParticleFilter():
 			elif k == 27:  # end processing
 				cv2.destroyAllWindows()
 				break
-			elif chr(k) == 'm':  # show reference image
-			  cv2.imshow('measurement', self.measurement)
+			elif chr(k) == 'm':  # show measurement
+			  cv2.imshow('measurement', self.get_measurement(self.state))
+			elif chr(k) == 'r': # show best ref image
+				cv2.imshow('ref', self.get_measurement(self.refs[0]['image']))
 			else:
 				k = 0
 
@@ -63,7 +69,7 @@ class ParticleFilter():
 		old_state = self.iMap.reset_origin(area)
 
 	def get_measurement(self, v):
-		self.measurement = self.orig_img[
+		return self.orig_img[
 			v[0][0]-IMAGE[0]:v[0][1]+IMAGE[0],
 			v[1][0]-IMAGE[0]:v[1][1]+IMAGE[1]].copy()
 
@@ -99,7 +105,8 @@ class ParticleFilter():
 			})
 
 	def compare_grams(self):
-		oG = cv2.calcHist([self.measurement], [0, 1, 2], None, [8, 8, 8], [0, 256, 0, 256, 0, 256])
+		oG = cv2.calcHist([self.get_measurement(self.state)],
+		 [0, 1, 2], None, [8, 8, 8], [0, 256, 0, 256, 0, 256])
 		oG = cv2.normalize(oG, oG).flatten()
 		for k in self.refs:
 			v = k['histogram']
