@@ -12,7 +12,7 @@ class ImgMap:
 	def get_plot(self, v):
 		return np.linspace(-v, v, v*2/self.du)
 
-	def origin(self, s):
+	def offset(self, s):
 		delta = s[0][1] - s[0][0]
 		if (s[1][1] >= 1500):
 			x = [s[1][0]-1500,s[1][0]-1500+delta]
