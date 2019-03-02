@@ -12,9 +12,23 @@ class ImgMap:
 	def get_plot(self, v):
 		return np.linspace(-v, v, v*2/self.du)
 
-	def offset(self, s):
-		x_mod =  1500 if s[0][1] < 1500 else -1500
-		y_mod = 1500 if s[1][1] < 1500 else -1500
-		return [
-			[s[0][0]+x_mod, s[0][1]+x_mod],
-			[s[1][0]+y_mod, s[1][1]+y_mod]]
+	def origin(self, s):
+		delta = s[0][1] - s[0][0]
+		if (s[1][1] >= 1500):
+			x = [s[1][0]-1500,s[1][0]-1500+delta]
+		else:
+		  x = [(-1500+delta)+s[1][0], (-1500-delta)+s[1][1]]
+		if (s[0][0] <= 1500):
+			y = [1500-s[0][0], 1500-s[0][1]+2*delta]
+		else: 
+			y = [1500-s[0][0], 1500-s[0][1]]
+		o = [x,y]
+		return o
+
+	def reset_origin(self, s):
+		x1,x2,y1,y2 = s[0][0],s[0][1],s[1][0],s[1][1]
+		
+
+	def selection(self, row, col, r):
+		s = [[row,row+r], [col,col+r]]
+		return s
