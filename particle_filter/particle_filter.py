@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 from .img_map import ImgMap
 import time
 import math
@@ -29,28 +28,15 @@ class ParticleFilter():
 		self.distribute_particles_randomly()
 		self.store_histograms()
 
-	# def set_state(self):
-	# 	col = random.randint(0, self.cols-DISTANCE_UNIT)
-	# 	row = random.randint(0, self.rows-DISTANCE_UNIT)
-	# 	s = self.iMap.selection(row, col, DISTANCE_UNIT)
-	# 	self.img[s[0][0]:s[0][1], s[1][0]:s[1][1]] = [74, 69, 255]
-	# 	self.state = su
-	# 	cv2.circle(
-	# 		self.img,
-	# 		(int(s[1][0]+DISTANCE_UNIT/2),int(s[0][0]+DISTANCE_UNIT/2)),
-	# 		int(2*(s[1][1]-s[1][0])),
-	# 		(0,0,0),
-	# 		thickness=4)
-
 	def set_actual_state(self):
 		col = random.randint(0, self.cols-DISTANCE_UNIT)
 		row = random.randint(0, self.rows-DISTANCE_UNIT)
-		s = self.iMap.selection(row, col, DISTANCE_UNIT)
+		s = self.iMap.selection(row, col, REF_U)
 		# self.state = self.iMap.offset_vector([row,col])
 		self.img[s[0][0]:s[0][1], s[1][0]:s[1][1]] = [74, 69, 255]
 		cv2.circle(
 			self.img,
-			(row,col),
+			(s[1][0]+REF_U,s[0][0]+REF_U),
 			4*REF_U,
 			(0,0,0),
 			thickness=4)
@@ -111,7 +97,7 @@ class ParticleFilter():
 	def store_histograms(self):
 		for k in self.refs:
 			v = k['image']
-			img = self.orig_img[v[0]-REF_U:v[0]+REF_U, v[1]-REF_U:v[1]+REF_U]	
+			img = self.get_measurement(v)
 			hist1 = cv2.calcHist([img], [0, 1, 2], None, [8, 8, 8], [0, 256, 0, 256, 0, 256])
 			hist1 = cv2.normalize(hist1, hist1).flatten()
 			k.update({
