@@ -10,7 +10,7 @@ import matplotlib
 matplotlib.use('TkAgg')
 from matplotlib import pyplot as plt
 
-IMAGE = [25, 25]
+REF_U = 25
 DISTANCE_UNIT = 50
 M = 2000 # number of particles
 
@@ -23,24 +23,38 @@ class ParticleFilter():
 		self.cols = img.shape[1]
 		self.iMap = ImgMap(self.img, DISTANCE_UNIT)
 		self.state = [[], []]
-		self.set_state()
+		self.set_actual_state()
 		self.time_step = 0
 		self.get_refs()
 		self.distribute_particles_randomly()
 		self.store_histograms()
 
-	def set_state(self):
+	# def set_state(self):
+	# 	col = random.randint(0, self.cols-DISTANCE_UNIT)
+	# 	row = random.randint(0, self.rows-DISTANCE_UNIT)
+	# 	s = self.iMap.selection(row, col, DISTANCE_UNIT)
+	# 	self.img[s[0][0]:s[0][1], s[1][0]:s[1][1]] = [74, 69, 255]
+	# 	self.state = su
+	# 	cv2.circle(
+	# 		self.img,
+	# 		(int(s[1][0]+DISTANCE_UNIT/2),int(s[0][0]+DISTANCE_UNIT/2)),
+	# 		int(2*(s[1][1]-s[1][0])),
+	# 		(0,0,0),
+	# 		thickness=4)
+
+	def set_actual_state(self):
 		col = random.randint(0, self.cols-DISTANCE_UNIT)
 		row = random.randint(0, self.rows-DISTANCE_UNIT)
 		s = self.iMap.selection(row, col, DISTANCE_UNIT)
+		# self.state = self.iMap.offset_vector([row,col])
 		self.img[s[0][0]:s[0][1], s[1][0]:s[1][1]] = [74, 69, 255]
-		self.state = s
 		cv2.circle(
 			self.img,
-			(int(s[1][0]+DISTANCE_UNIT/2),int(s[0][0]+DISTANCE_UNIT/2)),
-			int(2*(s[1][1]-s[1][0])),
+			(row,col),
+			4*REF_U,
 			(0,0,0),
 			thickness=4)
+		self.state = [row, col]
 
 	def draw_world(self):
 		self.action_step()
@@ -59,9 +73,12 @@ class ParticleFilter():
 				cv2.destroyAllWindows()
 				break
 			elif chr(k) == 'm':  # show measurement
-			  cv2.imshow('measurement', self.get_measurement(self.state))
+				ref = self.get_measurement(self.state)
+				cv2.imshow('measurement', ref)
 			elif chr(k) == 'r': # show best ref image
-				cv2.imshow('ref', self.get_measurement(self.refs[0]['image']))
+				ref = self.get_measurement(self.refs[0]['image'])
+				print(ref)
+				cv2.imshow('ref', ref)
 			else:
 				k = 0
 
@@ -69,25 +86,24 @@ class ParticleFilter():
 		old_state = self.iMap.reset_origin(area)
 
 	def get_measurement(self, v):
-		return self.orig_img[
-			v[0][0]-IMAGE[0]:v[0][1]+IMAGE[0],
-			v[1][0]-IMAGE[0]:v[1][1]+IMAGE[1]].copy()
-
-	def get_origin(self, s):
-		return self.iMap.offset(s)
+		v[0] = v[0] if v[0] > 0 else v[0] + DISTANCE_UNIT
+		v[1] = v[1] if v[1] > 0 else v[1] + DISTANCE_UNIT
+		v[0] = v[0] if v[0] < 3000 else v[0] - DISTANCE_UNIT
+		v[1] = v[1] if v[1] < 3000 else v[1] - DISTANCE_UNIT
+		ref = self.orig_img[v[0]-REF_U:v[0]+REF_U,v[1]-REF_U:v[1]+REF_U].copy()
+		return ref
 
 ################ REFS ######################
 
 	def get_refs(self):
 		self.refs = []
-		N = int(self.rows/DISTANCE_UNIT)
+		N = int((self.rows/REF_U)-DISTANCE_UNIT)
 		for row in range(N):
 			for col in range(N):
+				img = [row*REF_U,col*REF_U]
 				ob = {
 					'loc': 'ref' + str(row) + str(col),
-					'image': [
-					[row*DISTANCE_UNIT, (row*DISTANCE_UNIT)+DISTANCE_UNIT],
-					[col*DISTANCE_UNIT, (col*DISTANCE_UNIT)+DISTANCE_UNIT]]
+					'image': img
 				}
 				self.refs.append(ob)
 		self.store_histograms()
@@ -95,7 +111,7 @@ class ParticleFilter():
 	def store_histograms(self):
 		for k in self.refs:
 			v = k['image']
-			img = self.orig_img[v[0][0]:v[0][1], v[1][0]:v[1][1]]	
+			img = self.orig_img[v[0]-REF_U:v[0]+REF_U, v[1]-REF_U:v[1]+REF_U]	
 			hist1 = cv2.calcHist([img], [0, 1, 2], None, [8, 8, 8], [0, 256, 0, 256, 0, 256])
 			hist1 = cv2.normalize(hist1, hist1).flatten()
 			k.update({
@@ -151,7 +167,7 @@ class ParticleFilter():
 
 	def action_step(self):
 		print('action step')
-		self.revert_colors(self.state)
+		# self.revert_colors(self.state)
 
 ################# /MOVEMENT ####################
 

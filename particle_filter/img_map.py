@@ -12,7 +12,7 @@ class ImgMap:
 	def get_plot(self, v):
 		return np.linspace(-v, v, v*2/self.du)
 
-	def offset(self, s):
+	def offset_matrix(self, s):
 		delta = s[0][1] - s[0][0]
 		if (s[1][1] >= 1500):
 			x = [s[1][0]-1500,s[1][0]-1500+delta]
@@ -24,6 +24,14 @@ class ImgMap:
 			y = [1500-s[0][0], 1500-s[0][1]]
 		o = [x,y]
 		return o
+
+	def offset_vector(self, s):
+		if (s[1] >= 1500):
+			x = s[1]-1500
+		else:
+		  x = -1500+s[1]
+		y = 1500-s[0]
+		return [x,y]
 
 	def reset_origin(self, s):
 		x1,x2,y1,y2 = s[0][0],s[0][1],s[1][0],s[1][1]
