@@ -21,21 +21,22 @@ class ParticleFilter():
 		self.rows = img.shape[0]
 		self.cols = img.shape[1]
 		self.iMap = ImgMap(self.img, DU)
-		self.set_state(True)
+		self.update_state(True) # [x,y]
 		self.time_step = 0
 		self.get_refs()
 		self.distribute_particles_randomly()
 		self.store_histograms()
 
-	def set_state(self, init=False):
+	def update_state(self, init=False):
 		if (init):
 			col = random.randint(0, self.cols-DU)
 			row = random.randint(0, self.rows-DU)
 			s = self.iMap.selection(row, col, REF_U)
 			self.state = self.iMap.offset_vector(row,col)
+			print(self.state)
 		else:
-			y = self.state[1] + self.movement_vector[1]
-			x = self.state[0] + self.movement_vector[0]
+			y = self.state[1]
+			x = self.state[0]
 			m = self.iMap.to_image(x,y)
 			s = [[m[0]-REF_U,m[0]+REF_U],[m[1]-REF_U,m[1]+REF_U]]
 		self.img[s[0][0]:s[0][1], s[1][0]:s[1][1]] = [74, 69, 255]
@@ -49,6 +50,7 @@ class ParticleFilter():
 	def draw_world(self):
 		self.action_step()
 		self.compare_grams()
+		# self.convolutional_images()
 		while True:
 			cv2.namedWindow(self.name, cv2.WINDOW_NORMAL)
 			cv2.resizeWindow(self.name, 1000, 1500)
@@ -68,6 +70,11 @@ class ParticleFilter():
 				cv2.imshow('ref', self.get_measurement(self.refs[0]['image']))
 			elif k == 13: 
 				self.move()
+			elif chr(k) == 'c':
+				image = self.convolutional_images()
+				# cv2.namedWindow('conv', cv2.WINDOW_NORMAL)
+				# cv2.resizeWindow(self.name, 1000, 1500)
+				# cv2.imshow('conv', image)
 			else:
 				k = 0
 
@@ -132,6 +139,17 @@ class ParticleFilter():
 			particles.append(p)
 		self.X_t = particles
 
+	def resample(weights):
+		n = len(weights)
+		indices = []
+		C = [0.] + [sum(weights[:i+1]) for i in range(n)]
+		u0, j = random(), 0
+		for u in [(u0+i)/n for i in range(n)]:
+			while u > C[j]:
+				j+=1
+			indices.append(j-1)
+		return indices
+
 	def resample(self):
 		# insert gaussian dist here
 		for p in self.X_t:
@@ -140,6 +158,7 @@ class ParticleFilter():
 		# self.distribute_particles_randomly()
 
 	# def set_weights(self):
+		
 
 
 ################# /PARTICLES ####################
@@ -153,26 +172,39 @@ class ParticleFilter():
 		return 0
 
 	def get_measurement(self, v):
-		v = self.iMap.to_image(v[1], v[0])
-		v[0] = v[0] if v[0] > 0 else v[0] + DU
-		v[1] = v[1] if v[1] > 0 else v[1] + DU
-		v[0] = v[0] if v[0] < 3000 else v[0] - DU
-		v[1] = v[1] if v[1] < 3000 else v[1] - DU
-		ref = self.orig_img[v[0]-REF_U:v[0]+REF_U,v[1]-REF_U:v[1]+REF_U].copy()
+		i = self.iMap.to_image(v[0], v[1])
+		i[0] = i[0] if i[0] > 0 else i[0] + DU
+		i[1] = i[1] if i[1] > 0 else i[1] + DU
+		i[0] = i[0] if i[0] < 3000 else i[0] - DU
+		i[1] = i[1] if i[1] < 3000 else i[1] - DU
+		ref = self.orig_img[i[0]-REF_U:i[0]+REF_U,i[1]-REF_U:i[1]+REF_U].copy()
 		return ref
 
 	def move(self): #parametric representation of curves
+		self.img = self.orig_img
 		# random_speed = random.uniform(minSpeed, maxSpeed)
 		# hypoteneuse = opposite sq * adj sqr
 		angle = random.uniform(0, 2.0*math.pi)
 		self.movement_vector = [math.floor(DU * math.cos(angle)), math.floor(DU * math.sin(angle))]
-		self.set_state()
-		
-		# print(self.circle)
-
+		self.state[0] += self.movement_vector[0]
+		self.state[1] += self.movement_vector[1]
+		self.update_state()
 		# dx^2 + dy^2 = 50
 
+	def convolutional_images(self):
+		# referencing https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_imgproc/py_template_matching/py_template_matching.html
+		# C_MATCHERS = ['cv2.TM_CCOEFF','cv2.TM_CCOEFF_NORMED','cv2.TM_CCORR',
+		# 	'cv2.TM_CCORR_NORMED','cv2.TM_SQDIFF','cv2.TM_SQDIFF_NORMED']
+		template = self.get_measurement(self.state)
+		img = self.orig_img.copy()
 
+		res = cv2.matchTemplate(img,template,cv2.TM_CCOEFF_NORMED)
+		min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+		# top_left = min_loc if match in ['cv2.TM_SQDIFF', 'cv2.TM_SQDIFF_NORMED'] else max_loc
+		top_left = max_loc 
+		bottom_right = (top_left[0] + REF_U, top_left[1] + REF_U)
+		i = self.img[top_left[0]-REF_U:v[0]+REF_U,v[1]-REF_U:v[1]+REF_U].copy()
+		# return i
 
 ################# /MOVEMENT ####################
 
