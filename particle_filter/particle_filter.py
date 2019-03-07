@@ -12,17 +12,18 @@ from matplotlib import pyplot as plt
 REF_U = 25
 DU = 50
 M = 2000 # number of particles
+mu = 0
+sigma = 1.0
 
 class ParticleFilter():
 	def __init__(self, name, img):
 		self.name = name
 		self.img = img
+		self.rows, self.cols = self.img.shape[0], self.img.shape[1] 
 		self.orig_img = img.copy()
-		self.rows = img.shape[0]
-		self.cols = img.shape[1]
 		self.iMap = ImgMap(self.img, DU)
+		self.dt = 0
 		self.update_state(True) # [x,y]
-		self.time_step = 0
 		self.get_refs()
 		self.distribute_particles_randomly()
 		self.store_histograms()
@@ -31,14 +32,13 @@ class ParticleFilter():
 		if (init):
 			col = random.randint(0, self.cols-DU)
 			row = random.randint(0, self.rows-DU)
-			s = self.iMap.selection(row, col, REF_U)
 			self.state = self.iMap.offset_vector(row,col)
+			row,col = self.iMap.to_image(self.state[0], self.state[1])
+			s = self.iMap.selection(row, col, REF_U)
 			print(self.state)
 		else:
-			y = self.state[1]
-			x = self.state[0]
-			m = self.iMap.to_image(x,y)
-			s = [[m[0]-REF_U,m[0]+REF_U],[m[1]-REF_U,m[1]+REF_U]]
+			row,col = self.iMap.to_image(self.state[0], self.state[1])
+			s = self.iMap.selection(row, col, REF_U)
 		self.img[s[0][0]:s[0][1], s[1][0]:s[1][1]] = [74, 69, 255]
 		cv2.circle(
 			self.img,
@@ -48,9 +48,9 @@ class ParticleFilter():
 			thickness=4)
 
 	def draw_world(self):
-		self.action_step()
 		self.compare_grams()
 		# self.convolutional_images()
+		# self.approximator()
 		while True:
 			cv2.namedWindow(self.name, cv2.WINDOW_NORMAL)
 			cv2.resizeWindow(self.name, 1000, 1500)
@@ -71,7 +71,8 @@ class ParticleFilter():
 			elif k == 13: 
 				self.move()
 			elif chr(k) == 'c':
-				image = self.convolutional_images()
+				cv2.imshow('test', self.get_measurement([0,0]))
+				# image = self.convolutional_images()
 				# cv2.namedWindow('conv', cv2.WINDOW_NORMAL)
 				# cv2.resizeWindow(self.name, 1000, 1500)
 				# cv2.imshow('conv', image)
@@ -83,9 +84,11 @@ class ParticleFilter():
 	def get_refs(self):
 		self.refs = []
 		N = int((self.rows/REF_U)-DU)
+		x = []
 		for row in range(N):
 			for col in range(N):
 				img = self.iMap.offset_vector(row*REF_U,col*REF_U)
+				x.append(img[0])
 				ob = {
 					'loc': 'ref' + str(row) + str(col),
 					'image': img
@@ -133,43 +136,53 @@ class ParticleFilter():
 
 	def distribute_particles_randomly(self):
 		particles = []
+		x = []
 		for p in range(M):
-			p = [random.randint(0, self.cols),random.randint(0, self.rows), 1/M]
-			self.img[p[0]:p[0]+10, p[1]:p[1]+10] = [0, 0, 0]
+			# TODO: particle fix
+			col = random.randint(REF_U, self.cols-(DU+REF_U))
+			row = random.randint(REF_U, self.rows-(DU+REF_U))
+			p = self.iMap.offset_vector(row, col)
+			x.append(p[0])
+			p.append(1/M)
+			self.img[row:row+10, col:col+10] = [0, 0, 0]
 			particles.append(p)
 		self.X_t = particles
 
-	def resample(weights):
-		n = len(weights)
-		indices = []
-		C = [0.] + [sum(weights[:i+1]) for i in range(n)]
-		u0, j = random(), 0
-		for u in [(u0+i)/n for i in range(n)]:
-			while u > C[j]:
-				j+=1
-			indices.append(j-1)
-		return indices
-
-	def resample(self):
-		# insert gaussian dist here
+	def approximator(self):
 		for p in self.X_t:
-			self.img[p[0]:p[0]+10, p[1]:p[1]+10] = self.orig_img[p[0]
-					:p[0]+10, p[1]:p[1]+10] = [100, 100, 100]
-		# self.distribute_particles_randomly()
+			self.get_particle_reference(p)
 
-	# def set_weights(self):
-		
+			# find the nearest reference image based on location
+			# get the value of that image
+			# convert that value to a weight
+			
+	def get_particle_reference(self, p):
+		possible_refs = []
+		row, col = self.iMap.to_image(p[0],p[1])
+		N = int((self.rows/REF_U)-DU)
+		r = abs(round(row/REF_U) - DU)
+		c = abs(round(col/REF_U) - DU)
+		ref_name ='ref' + str(r) + str(c)
+		ref = None
+		for r in self.refs:
+			if r['loc'] == ref_name:
+				p.append(ref_name)
+				break
+		if (not ref):
+			print('no ref')
+			
+		# for r in self.refs:
+		# 	if (abs(r['image'][0] - p[0]) <= REF_U and abs(r['image'][1] - p[1]) <= REF_U):
+		# 		diff = abs(r['image'][0] - p[0]) + abs(r['image'][1] - p[1]) 
+		# 		possible_refs.append([r['loc'], diff])
+		# 	else:
+		# 		print(p)
+		# print(possible_refs)
 
 
 ################# /PARTICLES ####################
 
 ################# MOVEMENT #####################
-
-	def action_step(self):
-		self.revert_colors(self.state)
-
-	def revert_colors(self, area):
-		return 0
 
 	def get_measurement(self, v):
 		i = self.iMap.to_image(v[0], v[1])
@@ -181,20 +194,16 @@ class ParticleFilter():
 		return ref
 
 	def move(self): #parametric representation of curves
-		self.img = self.orig_img
-		# random_speed = random.uniform(minSpeed, maxSpeed)
-		# hypoteneuse = opposite sq * adj sqr
+		# self.approximator()
+		self.img = self.orig_img.copy()
+		# Extra Credit: random_speed = random.uniform(minSpeed, maxSpeed)
 		angle = random.uniform(0, 2.0*math.pi)
-		self.movement_vector = [math.floor(DU * math.cos(angle)), math.floor(DU * math.sin(angle))]
-		self.state[0] += self.movement_vector[0]
-		self.state[1] += self.movement_vector[1]
+		self.control = [math.floor(DU * math.cos(angle)), math.floor(DU * math.sin(angle))]
+		self.state[0] += int(self.control[0] + np.random.normal(0, 1.0, 3000)[0]) # agent does not have access to noise
+		self.state[1] += int(self.control[1] + np.random.normal(0, 1.0, 3000)[0])
 		self.update_state()
-		# dx^2 + dy^2 = 50
 
 	def convolutional_images(self):
-		# referencing https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_imgproc/py_template_matching/py_template_matching.html
-		# C_MATCHERS = ['cv2.TM_CCOEFF','cv2.TM_CCOEFF_NORMED','cv2.TM_CCORR',
-		# 	'cv2.TM_CCORR_NORMED','cv2.TM_SQDIFF','cv2.TM_SQDIFF_NORMED']
 		template = self.get_measurement(self.state)
 		img = self.orig_img.copy()
 

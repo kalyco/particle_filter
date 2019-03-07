@@ -32,7 +32,10 @@ class ImgMap:
 
 	def to_image(self, x, y):
 		col = x+1500
-		row = y+1500 if y >= 0 else 1500-y
+		if y >= 0:
+			row = y+1500 
+		else:
+			row = 1500-y
 		return [row,col]		
 
 	def selection(self, row, col, r):
