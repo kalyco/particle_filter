@@ -9,13 +9,14 @@ import matplotlib
 matplotlib.use('TkAgg')
 from matplotlib import pyplot as plt
 
-REF_U, DU, M, mu, sigma = 25, 50, 2000, 0, 1.0
+REF_U, DU, M, mu, sigma = 25, 50, 1000, 0, 1.0
 
 class ParticleFilter():
 	def __init__(self, name, img):
 		self.name = name
 		self.img = img
-		self.rows, self.cols = self.img.shape[0], self.img.shape[1] 
+		self.rows = self.img.shape[0]
+		self.cols = self.img.shape[1]
 		self.orig_img = img.copy()
 		self.iMap = ImgMap(self.img, DU)
 		self.dt = 0
@@ -25,11 +26,11 @@ class ParticleFilter():
 	def update_state(self, init=False):
 		if (init):
 			col = random.randint(REF_U, self.cols-DU)
-			row = random.randint(REF_U, self.rows-DU)
+			# row = random.randint(REF_U, self.rows-DU)		
+			row = random.randint(REF_U, 1500)		
 			self.state = self.iMap.offset_vector(row,col)
-			row,col = self.iMap.to_image(self.state[0], self.state[1])
 			s = self.iMap.selection(row, col, REF_U)
-			print(self.state)
+			# print(self.state)
 		else:
 			row,col = self.iMap.to_image(self.state[0], self.state[1])
 			s = self.iMap.selection(row, col, REF_U)
@@ -51,6 +52,9 @@ class ParticleFilter():
 			elif chr(k) == 'p': # show best particle
 				self.compare_grams()
 				cv2.imshow('p', self.P[0]['image'])
+			elif chr(k) == 'r':
+				self.compare_grams()
+				self.resample()
 			elif k == 13: 
 				self.move()
 			else:
@@ -61,7 +65,7 @@ class ParticleFilter():
 			print()
 
 	def get_measurement(self, v):
-		i = self.iMap.image_w_padding(v[0], v[1])
+		i = self.iMap.to_image(v[0], v[1])
 		ref = self.orig_img[i[0]-REF_U:i[0]+REF_U,i[1]-REF_U:i[1]+REF_U].copy()
 		return ref
 
@@ -91,19 +95,43 @@ class ParticleFilter():
 			})
 		self.P.sort(key=lambda e: e['corr_coeff'], reverse=True)
 
+	def resample(self):
+		for p in self.P:
+			coeff = p['corr_coeff']
+			[row,col] = self.iMap.to_image(p['state'][0], p['state'][1])
+			print(row, col)
+			if (-1.0 < coeff and coeff <= -0.75):
+				cv2.circle(self.img, (col, row), 2, (0, 102, 255), thickness=6)
+			elif (-0.75 < coeff and coeff <= -0.50):
+				cv2.circle(self.img, (col, row), 4, (0, 102, 255), thickness=6)	
+			elif (-0.50 < coeff and coeff <= -0.25):
+				cv2.circle(self.img, (col, row), 6, (0, 102, 255), thickness=6)
+			elif (-0.25 < coeff and coeff <= 0):
+				cv2.circle(self.img, (col, row), 8, (0, 102, 255), thickness=6)
+			elif (0 < coeff and coeff <= 0.25):
+				cv2.circle(self.img, (col, row), 12, (0, 102, 255), thickness=6)
+			elif (0.25 < coeff and coeff >= 0.50):
+				cv2.circle(self.img, (col, row), 16, (0, 102, 255), thickness=6)
+			elif (0.50 < coeff and coeff >= 0.75):
+				cv2.circle(self.img, (col, row), 18, (0, 102, 255), thickness=6)
+			else:
+				cv2.circle(self.img, (col, row), 20, (0, 102, 255), thickness=6)
+				# self.img[row-20:row+20, col-20:col+20] = [0, 0, 255]
+
 	def distribute_particles_randomly(self):
 		self.P = []
 		for p in range(M):
 			col = random.randint(REF_U, self.cols-DU)
 			row = random.randint(REF_U, self.rows-DU)
 			state = self.iMap.offset_vector(row, col)
+			# print(state)
 			p = {
 				'state': state,
 				'weight': 1/M,
 				'image': self.get_measurement(state),
 				'histogram': self.store_histogram(self.get_measurement(state))
 			}
-			self.img[row-6:row+6, col-6:col+6] = [0, 0, 0]
+			cv2.circle(self.img, (col, row), 8, (0,0,0), thickness=-1)
 			self.P.append(p)
 
 	def store_histogram(self, p):
@@ -140,7 +168,6 @@ class ParticleFilter():
 	# 			p.append(ref_name)
 	# 			break
 	# 	if (not ref):
-	# 		print('no ref')
 
 
 	# def ref_histogram(self, s):
