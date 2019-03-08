@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 from .img_map import ImgMap
 import time
 import math
@@ -10,152 +9,157 @@ import matplotlib
 matplotlib.use('TkAgg')
 from matplotlib import pyplot as plt
 
-IMAGE = [25, 25]
-DISTANCE_UNIT = 50
-M = 2000 # number of particles
+REF_U, DU, M, mu, sigma = 25, 50, 2000, 0, 1.0
 
 class ParticleFilter():
 	def __init__(self, name, img):
 		self.name = name
 		self.img = img
+		self.rows, self.cols = self.img.shape[0], self.img.shape[1] 
 		self.orig_img = img.copy()
-		self.rows = img.shape[0]
-		self.cols = img.shape[1]
-		self.iMap = ImgMap(self.img, DISTANCE_UNIT)
-		self.state = [[], []]
-		self.set_state()
-		self.time_step = 0
-		self.get_refs()
+		self.iMap = ImgMap(self.img, DU)
+		self.dt = 0
+		self.update_state(True) # [x,y]
 		self.distribute_particles_randomly()
-		self.store_histograms()
 
-	def set_state(self):
-		col = random.randint(0, self.cols-DISTANCE_UNIT)
-		row = random.randint(0, self.rows-DISTANCE_UNIT)
-		s = self.iMap.selection(row, col, DISTANCE_UNIT)
+	def update_state(self, init=False):
+		if (init):
+			col = random.randint(REF_U, self.cols-DU)
+			row = random.randint(REF_U, self.rows-DU)
+			self.state = self.iMap.offset_vector(row,col)
+			row,col = self.iMap.to_image(self.state[0], self.state[1])
+			s = self.iMap.selection(row, col, REF_U)
+			print(self.state)
+		else:
+			row,col = self.iMap.to_image(self.state[0], self.state[1])
+			s = self.iMap.selection(row, col, REF_U)
 		self.img[s[0][0]:s[0][1], s[1][0]:s[1][1]] = [74, 69, 255]
-		self.state = s
-		cv2.circle(
-			self.img,
-			(int(s[1][0]+DISTANCE_UNIT/2),int(s[0][0]+DISTANCE_UNIT/2)),
-			int(2*(s[1][1]-s[1][0])),
-			(0,0,0),
-			thickness=4)
+		cv2.circle(self.img, (s[1][0], s[0][0]), 4*REF_U, (0,0,0), thickness=4)
 
 	def draw_world(self):
-		self.action_step()
-		self.compare_grams()
 		while True:
 			cv2.namedWindow(self.name, cv2.WINDOW_NORMAL)
 			cv2.resizeWindow(self.name, 1000, 1500)
 			cv2.imshow(self.name, self.img)
 			wait_key = 33
 			k = cv2.waitKey(wait_key) & 0xff
-			if chr(k) == 's': # start running
-				wait_key = 33
-			elif chr(k) == 'p': # pause between frames
-				wait_key = 0
-			elif k == 27:  # end processing
+			if k == 27: # end processing
 				cv2.destroyAllWindows()
 				break
-			elif chr(k) == 'm':  # show measurement
-			  cv2.imshow('measurement', self.get_measurement(self.state))
-			elif chr(k) == 'r': # show best ref image
-				cv2.imshow('ref', self.get_measurement(self.refs[0]['image']))
+			elif chr(k) == 'm': # show measurement
+				cv2.imshow('measurement', self.get_measurement(self.state))
+			elif chr(k) == 'p': # show best particle
+				self.compare_grams()
+				cv2.imshow('p', self.P[0]['image'])
+			elif k == 13: 
+				self.move()
 			else:
 				k = 0
 
-	def revert_colors(self, area):
-		old_state = self.iMap.reset_origin(area)
+	def approximator(self):
+		for p in self.P:
+			print()
 
 	def get_measurement(self, v):
-		return self.orig_img[
-			v[0][0]-IMAGE[0]:v[0][1]+IMAGE[0],
-			v[1][0]-IMAGE[0]:v[1][1]+IMAGE[1]].copy()
+		i = self.iMap.image_w_padding(v[0], v[1])
+		ref = self.orig_img[i[0]-REF_U:i[0]+REF_U,i[1]-REF_U:i[1]+REF_U].copy()
+		return ref
 
-	def get_origin(self, s):
-		return self.iMap.offset(s)
-
-################ REFS ######################
-
-	def get_refs(self):
-		self.refs = []
-		N = int(self.rows/DISTANCE_UNIT)
-		for row in range(N):
-			for col in range(N):
-				ob = {
-					'loc': 'ref' + str(row) + str(col),
-					'image': [
-					[row*DISTANCE_UNIT, (row*DISTANCE_UNIT)+DISTANCE_UNIT],
-					[col*DISTANCE_UNIT, (col*DISTANCE_UNIT)+DISTANCE_UNIT]]
-				}
-				self.refs.append(ob)
-		self.store_histograms()
-
-	def store_histograms(self):
-		for k in self.refs:
-			v = k['image']
-			img = self.orig_img[v[0][0]:v[0][1], v[1][0]:v[1][1]]	
-			hist1 = cv2.calcHist([img], [0, 1, 2], None, [8, 8, 8], [0, 256, 0, 256, 0, 256])
-			hist1 = cv2.normalize(hist1, hist1).flatten()
-			k.update({
-				'loc': k['loc'],
-				'image': v,
-				'histogram': hist1
-			})
+	def move(self): #parametric representation of curves
+		self.dt += 1
+		self.img = self.orig_img.copy()
+		# Extra Credit: random_speed = random.uniform(minSpeed, maxSpeed)
+		angle = random.uniform(0, 2.0*math.pi)
+		self.control = [math.floor(DU * math.cos(angle)), math.floor(DU * math.sin(angle))]
+		self.state[0] += int(self.control[0] + np.random.normal(0, 1.0, 3000)[0]) # agent does not have access to noise
+		self.state[1] += int(self.control[1] + np.random.normal(0, 1.0, 3000)[0])
+		self.update_state()
 
 	def compare_grams(self):
 		oG = cv2.calcHist([self.get_measurement(self.state)],
 		 [0, 1, 2], None, [8, 8, 8], [0, 256, 0, 256, 0, 256])
 		oG = cv2.normalize(oG, oG).flatten()
-		for k in self.refs:
-			v = k['histogram']
+		for p in self.P:
+			v = p['histogram']
 			coeff = cv2.compareHist(oG, v, cv2.HISTCMP_CORREL)
-			k.update({
-				'loc': k['loc'],
-				'image': k['image'],
+			p.update({
+				'state': p['state'],
+				'weight': p['weight'],
+				'image': p['image'],
 				'histogram': v,
 				'corr_coeff': coeff
 			})
-		self.refs.sort(key=lambda e: e['corr_coeff'], reverse=True)
-
-	def ref_histogram(self, s):
-		plt.hist(s.ravel(),256,[0,256])
-		# plt.draw()
-		# plt.show()
-		# plt.pause(0.03)
-
-##################### /REFS ######################
-
-
-################# PARTICLES ######################
+		self.P.sort(key=lambda e: e['corr_coeff'], reverse=True)
 
 	def distribute_particles_randomly(self):
-		particles = []
+		self.P = []
 		for p in range(M):
-			p = [random.randint(0, self.cols),random.randint(0, self.rows), 1/M]
-			self.img[p[0]:p[0]+10, p[1]:p[1]+10] = [0, 0, 0]
-			particles.append(p)
-		self.X_t = particles
+			col = random.randint(REF_U, self.cols-DU)
+			row = random.randint(REF_U, self.rows-DU)
+			state = self.iMap.offset_vector(row, col)
+			p = {
+				'state': state,
+				'weight': 1/M,
+				'image': self.get_measurement(state),
+				'histogram': self.store_histogram(self.get_measurement(state))
+			}
+			self.img[row-6:row+6, col-6:col+6] = [0, 0, 0]
+			self.P.append(p)
 
-	def resample(self):
-		# insert gaussian dist here
-		for p in self.X_t:
-			self.img[p[0]:p[0]+10, p[1]:p[1]+10] = self.orig_img[p[0]
-					:p[0]+10, p[1]:p[1]+10] = [100, 100, 100]
-		# self.distribute_particles_randomly()
-
-################# /PARTICLES ####################
-
-################# MOVEMENT #####################
-
-	def action_step(self):
-		print('action step')
-		self.revert_colors(self.state)
-
-################# /MOVEMENT ####################
+	def store_histogram(self, p):
+			hist1 = cv2.calcHist([p], [0, 1, 2], None, [8, 8, 8], [0, 256, 0, 256, 0, 256])
+			return cv2.normalize(hist1, hist1).flatten()
 
 
-################ PREDICTION #####################
 
-################ /PREDICTION #####################
+
+
+
+	# def convolutional_images(self):
+	# 	template = self.get_measurement(self.state)
+	# 	img = self.orig_img.copy()
+
+	# 	res = cv2.matchTemplate(img,template,cv2.TM_CCOEFF_NORMED)
+	# 	min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+	# 	# top_left = min_loc if match in ['cv2.TM_SQDIFF', 'cv2.TM_SQDIFF_NORMED'] else max_loc
+	# 	top_left = max_loc 
+	# 	bottom_right = (top_left[0] + REF_U, top_left[1] + REF_U)
+	# 	i = self.img[top_left[0]-REF_U:v[0]+REF_U,v[1]-REF_U:v[1]+REF_U].copy()
+
+			
+	# def get_particle_reference(self, p):
+	# 	possible_refs = []
+	# 	row, col = self.iMap.to_image(p[0],p[1])
+	# 	N = int((self.rows/REF_U)-DU)
+	# 	r = abs(round(row/REF_U) - DU)
+	# 	c = abs(round(col/REF_U) - DU)
+	# 	ref_name ='ref' + str(r) + str(c)
+	# 	ref = None
+	# 	for r in self.refs:
+	# 		if r['loc'] == ref_name:
+	# 			p.append(ref_name)
+	# 			break
+	# 	if (not ref):
+	# 		print('no ref')
+
+
+	# def ref_histogram(self, s):
+	# 	plt.hist(s.ravel(),256,[0,256])
+	# 	# plt.draw()
+	# 	# plt.show()
+	# 	# plt.pause(0.03)
+
+	# def get_refs(self):
+	# 	self.refs = []
+	# 	N = int((self.rows/REF_U)-DU)
+	# 	x = []
+	# 	for row in range(N):
+	# 		for col in range(N):
+	# 			img = self.iMap.offset_vector(row*REF_U,col*REF_U)
+	# 			x.append(img[0])
+	# 			ob = {
+	# 				'loc': 'ref' + str(row) + str(col),
+	# 				'image': img
+	# 			}
+	# 			self.refs.append(ob)
+	# 		self.store_histogram(ob['image'])
