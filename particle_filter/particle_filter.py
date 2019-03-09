@@ -33,16 +33,17 @@ class ParticleFilter():
 			k = cv2.waitKey(wait_key) & 0xff
 			if k == 13: 
 				self.step()
-			elif chr(k) == '0': # Set robot location
+			elif chr(k) == '0': # Set robot location (x,y)
 				self.update_state(True)
-			elif chr(k) == '1': # Scatter particles
+			elif chr(k) == '1': # Scatter M particles
 				self.dist_particles()
 			elif chr(k) == '2': # Inflate particles
 				self.inflate()
 			elif chr(k) == '3': # Resample set 
 				self.resample()
-			elif chr(k) == '4': # Move bot and shift particles
+			elif chr(k) == '4': # Move bot
 				self.move_agent()
+			elif chr(k) == '5': # Shift particles	
 				self.shift_particles()
 			elif chr(k) == 'm': # Get reference image
 				cv2.imshow('measurement', self.get_measurement(self.state))
@@ -58,7 +59,7 @@ class ParticleFilter():
 		self.move_agent()
 		self.shift_particles()
 
-################### Step 0 #######################
+################### Step 0: Draw Map ####################
 
 	def update_state(self, init=False): # 0
 		if (init):
@@ -72,28 +73,20 @@ class ParticleFilter():
 		self.img[s[0][0]:s[0][1], s[1][0]:s[1][1]] = [74, 69, 255]
 		cv2.circle(self.img, (s[1][0], s[0][0]), 4*REF_U, (0,0,0), thickness=4)
 
-################### Step 1 #######################
+################# Step 1: Random Particles ####################
 
-	def dist_particles(self, resampling=False): # 1
+	def dist_particles(self): # 1
 		self.P = []
 		for i in range(M):
-			if (resampling):
-				row, col = self.iMap.to_image(self.samples[i][0], self.samples[i][1])
-			else: 
-				col = random.randint(0, self.cols-DU)
-				row = random.randint(0, self.rows-DU)
+			col = random.randint(0, self.cols-DU)
+			row = random.randint(0, self.rows-DU)
 			state = self.iMap.offset_vector(row, col)
 			self.P.append({'state': state, 'prior': state, 'weight': 1/M})
 			cv2.circle(self.img, (col, row), 8, (0,0,0), thickness=8)
 
-################### Step 2 #######################
+################ Step 2: Inflate Particles #######################
 
-	def get_measurement(self, v): # 2.a
-		i = self.iMap.to_image(v[0], v[1])
-		ref = self.orig_img[i[0]-REF_U:i[0]+REF_U,i[1]-REF_U:i[1]+REF_U].copy()
-		return ref
-
-	def compare_grams(self): # 2.b
+	def compare_grams(self): # 2.a
 		oG = cv2.calcHist([self.get_measurement(self.state)],
 		 [0, 1, 2], None, [8, 8, 8], [0, 256, 0, 256, 0, 256])
 		oG = cv2.normalize(oG, oG).flatten()
@@ -103,54 +96,42 @@ class ParticleFilter():
 			p.update({'state': p['state'], 'prior': p['prior'], 'weight': coeff})
 		self.P.sort(key=lambda e: e['weight'], reverse=True)
 
-	def get_grams(self, p): # 2.c
+	def get_grams(self, p): # 2.b
 		img = self.get_measurement(p['state'])
 		hist = cv2.calcHist([img], [0, 1, 2], None, [8, 8, 8], [0, 256, 0, 256, 0, 256])
 		return cv2.normalize(hist, hist).flatten()
 
-	def inflate(self): # 2.d
+	def inflate(self): # 2.c
 		self.compare_grams()
+		self.img = self.orig_img.copy()
+		self.update_state()
 		for p in self.P:
-			coeff = p['weight']
-			[row,col] = self.iMap.to_image(p['state'][0], p['state'][1])
-			radius = 24
-			if (-1.0 < coeff and coeff <= -0.75):
-				radius = 1
-			elif (-0.75 < coeff and coeff <= -0.50):
-				radius = 2
-			elif (-0.50 < coeff and coeff <= -0.25):
-				radius = 3
-			elif (-0.25 < coeff and coeff <= 0):
-				radius = 4
-			elif (0 < coeff and coeff <= 0.25):
-				radius = 5
-			elif (0.25 < coeff and coeff >= 0.50):
-				radius = 6
-			elif (0.50 < coeff and coeff >= 0.75):
-				radius = 8
-			cv2.circle(self.img, (col, row), radius, (0, 102, 255), thickness=-1)
+			mid_rad = 12
+			radius = np.floor(mid_rad + p['weight'] * mid_rad)
+			self.redraw_point(p['state'], int(radius))
 
-#################### Step 3 #######################
+#################### Step 3: Resample particles #######################
+
+	def resample(self): # 3
+		self.img = self.orig_img.copy()
+		self.update_state()
+		self.roulette_wheel_resample()
 
 	def roulette_wheel_resample(self): # 3.a
 		wheelVals = []
 		weightSum = 0
-		self.samples = []
 		total = sum(list(map(lambda x: x['weight'], self.P)))
-		for i in self.P:
-			weightSum += i['weight']
+		self.img = self.orig_img.copy()
+		self.update_state()
+		for i in range(M):
+			weightSum += self.P[i]['weight']
 			wheelVals.append(weightSum/total)
 			x = random.random()
 			idx = bisect.bisect(wheelVals, x)
-			self.samples.append(self.P[idx]['state'])
+			self.P[i]['state'] = self.P[idx]['state']
+			self.redraw_point(self.P[i]['state'], 8)
 
-	def resample(self): # 3.b
-		self.roulette_wheel_resample()
-		self.img = self.orig_img.copy()
-		self.update_state()
-		self.dist_particles(True)
-
-################### Step 4 #######################
+################### Step 4: Move agent #######################
 
 	def gen_control(self): # 4.a
 		# ExCred: random_speed = random.uniform(minSpeed, maxSpeed)
@@ -163,15 +144,29 @@ class ParticleFilter():
 		self.state = self.get_movement(self.state)
 		self.update_state()
 
-	def get_movement(self, state): # 4.c
+################### Step 5: Shift particles #######################
+
+	def shift_particles(self): # 5
+		self.img = self.orig_img.copy()
+		self.update_state()
+		print(len(self.P))
+		for p in self.P:
+			p['state'] = self.get_movement(p['state'])
+			self.redraw_point(p['state'], 8)
+
+
+################### Helper Functions #######################
+
+	def get_measurement(self, v):
+		i = self.iMap.to_image(v[0], v[1])
+		ref = self.orig_img[i[0]-REF_U:i[0]+REF_U,i[1]-REF_U:i[1]+REF_U].copy()
+		return ref
+	
+	def redraw_point(self, s, radius):
+		row,col = self.iMap.to_image(s[0], s[1])
+		cv2.circle(self.img, (col, row), radius, (75,0,130), thickness=8)
+
+	def get_movement(self, state):
 		state[0] += int(self.control[0] + np.random.normal(0, 1.0, 3000)[0]) # agent does not have access to noise
 		state[1] += int(self.control[1] + np.random.normal(0, 1.0, 3000)[0])
 		return state
-
-	def shift_particles(self): # 4.d
-		self.img = self.orig_img.copy()
-		self.update_state()
-		for p in self.P:
-			p['state'] = self.get_movement(p['state'])
-			row,col = self.iMap.to_image(p['state'][0], p['state'][1])
-			cv2.circle(self.img, (col, row), 8, (0,0,0), thickness=8)	
