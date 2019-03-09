@@ -26,25 +26,20 @@ class ImgMap:
 		return o
 
 	def offset_vector(self, row, col):
-		x = col-1500 if col >= 1500 else -1500+col
+		if (col <= 1500):
+			x = -1500+col
+		else:
+			x = col-1500
 		y = 1500-row
 		return [x,y]
 
 	def to_image(self, x, y):
 		col = x+1500
-		if y >= 0:
-			row = y+1500 
+		if (y <= 0):
+			row = 1500-y
 		else:
 			row = 1500-y
 		return [row,col]		
-
-	def image_w_padding(self, x, y):
-		i = self.to_image(x, y)
-		i[0] = i[0] if i[0] > 0 else i[0] + DU
-		i[1] = i[1] if i[1] > 0 else i[1] + DU
-		i[0] = i[0] if i[0] < 3000 else i[0] - DU
-		i[1] = i[1] if i[1] < 3000 else i[1] - DU
-		return i
 
 	def selection(self, row, col, r):
 		s = [[row,row+r], [col,col+r]]
