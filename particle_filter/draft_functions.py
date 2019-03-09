@@ -1,3 +1,18 @@
+# def calc_distance(self):
+# xd = self.state
+# 		negRes = 0
+# 		posRes = 0
+# 		for p in self.P:
+# 			diff = (abs(p['state'][0] - self.state[0]) +
+# 			 abs(p['state'][1] - self.state[1])) / 2
+# 			d = 1 - p['weight']
+# 			state = self.iMap.to_image(p['state'][0], p['state'][1])
+# 			# if (d > 1):
+# 			# 	cv2.circle(self.img, (state[0], state[1]), 8, (0,0,0), thickness=-1)
+# 			# 	negRes += 1
+# 			# else:
+# 			# 	posRes += 1
+
 	# def bayes_rule(self):
 	# 	for m in self.P:
 	# 		print(m['prior'])
