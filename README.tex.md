@@ -1,10 +1,10 @@
 ### Particle Filter
 
-{\bf Setup}\\
-\$ git clone https://github.com/kalyco/particle\_filter.git\\
-\$ cd particle\_filter.git
-\$ python setup.py\\
-\$ python main.py\\
+*Setup*   
+`$ git clone https://github.com/kalyco/particle_filter.git`
+`$ cd particle_filter.git`
+`$ python setup.py`
+`$ python main.py`
 
   \begin{tabular}{ |p{3cm}||p{6cm}|  }
  \hline
