@@ -1,12 +1,12 @@
 ### Particle Filter
 
 *Setup*   
-`$ git clone https://github.com/kalyco/particle_filter.git`
-`$ cd particle_filter.git`
-`$ python setup.py`
-`$ python main.py`
+`git clone https://github.com/kalyco/particle_filter.git`
+`cd particle_filter.git`
+`python setup.py`
+`python main.py`
 
-  \begin{tabular}{ |p{3cm}||p{6cm}|  }
+ \begin{tabular}{ |p{3cm}||p{6cm}|  }
  \hline
  \multicolumn{2}{|c|}{ImageCommands} \\
  \hline
