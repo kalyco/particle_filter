@@ -40,8 +40,8 @@ class ParticleFilter():
 			elif chr(k) == '2': # Inflate particles
 				self.inflate()
 			elif chr(k) == '3': # Resample set 
-				# self.roulette_wheel_resample()
-				self.distance_based_resample()
+				self.roulette_wheel_resample()
+				# self.distance_based_resample()
 			elif chr(k) == '4': # Move bot
 				self.move_agent()
 			elif chr(k) == '5': # Shift particles	
@@ -121,7 +121,7 @@ class ParticleFilter():
 			 p['state'][1] > 1500 or p['state'][1] < -1500):
 				coeff = 0
 			p.update({'state': p['state'], 'prior': p['prior'], 'weight': coeff})
-		self.P.sort(key=lambda e: e['weight'], reverse=True)
+		# self.P.sort(key=lambda e: e['weight'])
 
 	def get_grams(self, p): # 2.b
 		img = self.get_measurement(p['state'])
