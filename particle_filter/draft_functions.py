@@ -13,19 +13,6 @@
 # 			# else:
 # 			# 	posRes += 1
 
-	# def bayes_rule(self):
-	# 	for m in self.P:
-	# 		print(m['prior'])
-	# 		# p(x|y,z) = p(y|x,z)*p(x|z)/p(y|z)
-	# 		x = multivariate_normal.pdf(self.state, 0, 1.0)
-	# 		y = multivariate_normal.pdf(self.control, 0, 1.0)
-	# 		z = multivariate_normal.pdf(m['prior'], 0, 1.0) 
-	# 		# p1 = self.conditional_probability(y,(x*z)) # p(y|x,z)
-	# 		p2 = self.conditional_probability(x,z) # p(x|z)
-	# 		p3 = self.conditional_probability(y,z) # p(y|z)
-	# 		m['state'] = (p1*p2)/p3
-	# 		print(m['state'])
-
 	# def conditional_probability(self, a, b): # p(a|b)
 	# 	return (multivariate_normal.pdf(a, 0, 1.0)
 	# 	* multivariate_normal.pdf(b, 0, 1.0))

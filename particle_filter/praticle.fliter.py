@@ -108,11 +108,7 @@ class ParticleFilter():
 			except:
 				pass
 		relevant_particles.sort(key=lambda e: e['sse'])
-		if (len(relevant_particles)):
-			max_err = relevant_particles[-1]['sse']
-		else: 
-			print('max size')
-			max_err = sys.maxsize
+		max_err = relevant_particles[-1]['sse']
 		total = sum(list(map(lambda x: max_err - x['sse'], relevant_particles)))
 		for m in self.P:
 			try:
