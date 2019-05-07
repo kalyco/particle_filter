@@ -78,3 +78,20 @@
 	# 			}
 	# 			self.refs.append(ob)
 	# 		self.store_histogram(ob['image'])
+
+	# def roulette_wheel_test(self):
+	# 	# for each point get its probability and append to an array
+	# 	# draw from this distribution
+	# 	wheelVals = []
+	# 	# get sum of all weights
+	# 	total = sum(list(map(lambda x: x['weight'], self.P)))
+	# 	# get a random value 
+	# 	randomVal = random.random() * total
+	# 	for i in range(M):
+	# 		# locate random value based on weights
+	# 		randomVal -= self.P[i]['weight']
+	# 		if (randomVal < 0):
+	# 			return i
+	# 	# when rounding errors occur, return the last item's index		
+	# 	return self.P[-1]['weight']
+	# 	# list(map(lambda x: wheelVals.append(x['weight']/total), self.P))
