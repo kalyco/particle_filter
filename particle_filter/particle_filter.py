@@ -145,8 +145,9 @@ class ParticleFilter():
 		self.redraw_world()
 		for p in self.P:
 			mid_rad = 40000
-			radius = np.floor(p['weight'] * mid_rad)
-			self.redraw_point(p['state'], int(radius))
+			if (type(p['weight'] == int)):
+				radius = np.floor(p['weight'] * mid_rad)
+				self.redraw_point(p['state'], int(radius))
 
 #################### Step 3: Resample particles #######################
 
@@ -155,7 +156,6 @@ class ParticleFilter():
 		wheelVals = []
 		weightSum = 0
 		total = sum(list(map(lambda x: x['weight'], self.P)))
-		noise = np.random.normal(0, 10.0, M)
 		particles = self.P
 		self.P = []
 		for i in range(len(particles)):
@@ -166,6 +166,8 @@ class ParticleFilter():
 			idx = bisect.bisect(wheelVals, x)
 			new_p = particles[idx]
 			new_p['prior'] = particles[idx]['state'] 
+			new_p['state'][0] += int(np.random.normal(0, 10.0))
+			new_p['state'][1] += int(np.random.normal(0, 10.0))
 			self.P.append(particles[idx])
 			self.redraw_point(self.P[-1]['state'], 8)
 
@@ -196,6 +198,7 @@ class ParticleFilter():
 		for p in self.P:
 			self.get_movement(p['state'])
 			self.redraw_point(p['state'], 8)
+		self.reweigh_samples()
 
 	def bayes_rule(self):
 		for m in self.P:
@@ -217,6 +220,17 @@ class ParticleFilter():
 
 	def conditional_probability(self, a, b): # p(a|b)
 		return (np.random.normal(a) * np.random.normal(b)) / np.random.normal(b)
+
+	def reweigh_samples(self):
+		norm_factor = 0
+		for m in self.P:
+			x = self.conditional_probability(self.state[0], m['state'][0])
+			y = self.conditional_probability(self.state[1], m['state'][1])
+			weight = (x+y)/2
+			m['weight'] = weight
+			norm_factor += weight
+		for m in self.P:
+			m['weight'] = m['weight'] / norm_factor
 
 ################### Helper Functions #######################
 
