@@ -113,8 +113,6 @@ class ParticleFilter():
 		else: 
 			max_err = sys.maxsize
 		total = sum(list(map(lambda x: (max_err - x['sse']) ** 2, relevant_particles)))
-		# print(total)
-		# print(max_err)
 		for m in self.P:
 			try:
 				ratio = ((max_err - m['sse']) ** 2) / total
@@ -122,7 +120,6 @@ class ParticleFilter():
 			except:
 				m['weight'] = 0
 		new_total = sum(list(map(lambda x: x['weight'], relevant_particles)))
-		# print(new_total)
 
 	def compare_grams(self): # 2.a
 		oG = cv2.calcHist([self.get_measurement(self.state)],
@@ -148,8 +145,8 @@ class ParticleFilter():
 		self.redraw_world()
 		for p in self.P:
 			mid_rad = 40000
-			# if (type(p['weight'] == int)):
 			radius = np.floor(p['weight'] * mid_rad)
+			radius = 100 if radius > 100 else radius
 			self.redraw_point(p['state'], int(radius))
 
 #################### Step 3: Resample particles #######################
@@ -161,18 +158,6 @@ class ParticleFilter():
 		total = sum(list(map(lambda x: x['weight'], self.P)))
 		particles = self.P
 		self.P = []
-		# for i in range(len(particles)):
-		# 	p = particles[i]
-		# 	weightSum += p['weight']
-		# 	wheelVals.append(weightSum/total)
-		# 	x = random.random()
-		# 	idx = bisect.bisect(wheelVals, x)
-		# 	new_p = particles[idx]
-		# 	new_p['prior'] = particles[idx]['state'] 
-		# 	self.P.append(particles[idx])
-		# 	self.redraw_point(self.P[-1]['state'], 8)
-		print('total')
-		print(total)
 		for i in range(M):
 			r = np.random.uniform(0,1)
 			c = 0.0 + particles[0]['weight']
@@ -184,9 +169,6 @@ class ParticleFilter():
 				else:
 					c += particles[j+1]['weight'] 
 
-
-
-
 ################### Step 4: Move agent #######################
 
 	def gen_control(self): # 4.a
@@ -194,8 +176,6 @@ class ParticleFilter():
 		angle = random.uniform(0, 2.0*math.pi)
 		# self.control = [math.floor(DU * math.cos(angle)), math.floor(DU * math.sin(angle))]
 		self.control = [DU * math.cos(angle), DU * math.sin(angle)]
-		print('control')
-		print(self.control)
 
 
 	def move_agent(self): # 4.b
@@ -217,11 +197,7 @@ class ParticleFilter():
 		self.bayes_rule()
 		self.redraw_world()
 		for p in self.P:
-			print("original movement")
-			print(p['state'])
 			self.get_movement(p['state'])
-			print("true movement")
-			print(p['state'])
 			self.redraw_point(p['state'], 8)
 		self.reweigh_samples()
 
@@ -239,7 +215,7 @@ class ParticleFilter():
 			y2 = self.conditional_probability(u[1],x_prior[1]) # p(u|x_prior)
 			x3 = self.conditional_probability(x[0],x_prior[0]) # p(x|x_prior)
 			y3 = self.conditional_probability(u[1],x_prior[1]) # p(u|x_prior)
-			new_state = [int((x1*x2)/x3), int((y1*y2)/y3)]
+			new_state = [(x1*x2)/x3, (y1*y2)/y3]
 			m['prior'] = m['state']
 			m['state'] = new_state
 
@@ -270,15 +246,8 @@ class ParticleFilter():
 			cv2.circle(self.img, (int(col), int(row)), radius, (0,0,0), thickness=8)
 
 	def get_movement(self, state):
-		print('old state')
-		print(state)
 		state[0] += self.control[0] + np.random.normal(0, noise)
 		state[1] += self.control[1] + np.random.normal(0, noise)
-		print('control vector')
-		print(self.control)
-		print('new state')
-		print(state)
-		# check this returns and updates
 		return state
 
 	def redraw_world(self):
