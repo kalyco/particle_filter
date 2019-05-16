@@ -13,7 +13,7 @@ matplotlib.use('TkAgg')
 from matplotlib import pyplot as plt
 from scipy.stats import norm
 
-REF_U, DU, M, mu, sigma = 75, 50, 1000, 0, 1.0
+REF_U, DU, M, mu, sigma, noise = 75, 50, 2000, 0, 1.0, 2.0
 
 class ParticleFilter():
 	def __init__(self, name, img):
@@ -65,15 +65,15 @@ class ParticleFilter():
 
 	def update_state(self, init=False): # 0
 		if (init):
-			col = random.randint(REF_U, self.cols-DU)
-			row = random.randint(REF_U, self.rows-DU)
+			col = np.random.uniform(REF_U, self.cols-DU)
+			row = np.random.uniform(REF_U, self.rows-DU)
 			self.state = self.iMap.offset_vector(row,col)
 			s = self.iMap.selection(row, col, REF_U)
 		else:
 			row,col = self.iMap.to_image(self.state[0], self.state[1])
 			s = self.iMap.selection(row, col, REF_U)
-		self.img[s[0][0]:s[0][1], s[1][0]:s[1][1]] = [74, 69, 255]
-		cv2.circle(self.img, (s[1][0], s[0][0]), 4*REF_U, (0,0,0), thickness=4)
+		self.img[int(s[0][0]):int(s[0][1]), int(s[1][0]):int(s[1][1])] = [74, 69, 255]
+		cv2.circle(self.img, (int(s[1][0]), int(s[0][0])), 4*REF_U, (0,0,0), thickness=4)
 
 ################# Step 1: Random Particles ####################
 
@@ -81,11 +81,11 @@ class ParticleFilter():
 		self.redraw_world()
 		self.P = []
 		for i in range(M):
-			col = random.randint(0, self.cols-DU)
-			row = random.randint(0, self.rows-DU)
+			col = np.random.uniform(0, self.cols-DU)
+			row = np.random.uniform(0, self.rows-DU)
 			state = self.iMap.offset_vector(row, col)
 			self.P.append({'state': state, 'prior': state, 'weight': 1/M})
-			cv2.circle(self.img, (col, row), 8, (0,0,0), thickness=8)
+			cv2.circle(self.img, (int(col), int(row)), 8, (0,0,0), thickness=8)
 
 ################ Step 2: Inflate Particles #######################
 
@@ -111,15 +111,18 @@ class ParticleFilter():
 		if (len(relevant_particles)):
 			max_err = relevant_particles[-1]['sse']
 		else: 
-			print('max size')
 			max_err = sys.maxsize
-		total = sum(list(map(lambda x: max_err - x['sse'], relevant_particles)))
+		total = sum(list(map(lambda x: (max_err - x['sse']) ** 2, relevant_particles)))
+		# print(total)
+		# print(max_err)
 		for m in self.P:
 			try:
-				ratio = (max_err - m['sse']) / total
+				ratio = ((max_err - m['sse']) ** 2) / total
 				m['weight'] = ratio
 			except:
 				m['weight'] = 0
+		new_total = sum(list(map(lambda x: x['weight'], relevant_particles)))
+		# print(new_total)
 
 	def compare_grams(self): # 2.a
 		oG = cv2.calcHist([self.get_measurement(self.state)],
@@ -145,9 +148,9 @@ class ParticleFilter():
 		self.redraw_world()
 		for p in self.P:
 			mid_rad = 40000
-			if (type(p['weight'] == int)):
-				radius = np.floor(p['weight'] * mid_rad)
-				self.redraw_point(p['state'], int(radius))
+			# if (type(p['weight'] == int)):
+			radius = np.floor(p['weight'] * mid_rad)
+			self.redraw_point(p['state'], int(radius))
 
 #################### Step 3: Resample particles #######################
 
@@ -158,25 +161,42 @@ class ParticleFilter():
 		total = sum(list(map(lambda x: x['weight'], self.P)))
 		particles = self.P
 		self.P = []
-		for i in range(len(particles)):
-			p = particles[i]
-			weightSum += p['weight']
-			wheelVals.append(weightSum/total)
-			x = random.random()
-			idx = bisect.bisect(wheelVals, x)
-			new_p = particles[idx]
-			new_p['prior'] = particles[idx]['state'] 
-			new_p['state'][0] += int(np.random.normal(0, 10.0))
-			new_p['state'][1] += int(np.random.normal(0, 10.0))
-			self.P.append(particles[idx])
-			self.redraw_point(self.P[-1]['state'], 8)
+		# for i in range(len(particles)):
+		# 	p = particles[i]
+		# 	weightSum += p['weight']
+		# 	wheelVals.append(weightSum/total)
+		# 	x = random.random()
+		# 	idx = bisect.bisect(wheelVals, x)
+		# 	new_p = particles[idx]
+		# 	new_p['prior'] = particles[idx]['state'] 
+		# 	self.P.append(particles[idx])
+		# 	self.redraw_point(self.P[-1]['state'], 8)
+		print('total')
+		print(total)
+		for i in range(M):
+			r = np.random.uniform(0,1)
+			c = 0.0 + particles[0]['weight']
+			for j in range(len(particles)-1):
+				if (r < c):
+					self.P.append(particles[j])
+					self.redraw_point(particles[j]['state'], 8)
+					break
+				else:
+					c += particles[j+1]['weight'] 
+
+
+
 
 ################### Step 4: Move agent #######################
 
 	def gen_control(self): # 4.a
 		# ExCred: random_speed = random.uniform(minSpeed, maxSpeed)
 		angle = random.uniform(0, 2.0*math.pi)
-		self.control = [math.floor(DU * math.cos(angle)), math.floor(DU * math.sin(angle))]
+		# self.control = [math.floor(DU * math.cos(angle)), math.floor(DU * math.sin(angle))]
+		self.control = [DU * math.cos(angle), DU * math.sin(angle)]
+		print('control')
+		print(self.control)
+
 
 	def move_agent(self): # 4.b
 		self.gen_control()
@@ -189,6 +209,7 @@ class ParticleFilter():
 		self.redraw_world()
 		for p in self.P:
 			self.redraw_point(p['state'], 8)
+			
 
 ################### Step 5: Shift particles #######################
 
@@ -196,7 +217,11 @@ class ParticleFilter():
 		self.bayes_rule()
 		self.redraw_world()
 		for p in self.P:
+			print("original movement")
+			print(p['state'])
 			self.get_movement(p['state'])
+			print("true movement")
+			print(p['state'])
 			self.redraw_point(p['state'], 8)
 		self.reweigh_samples()
 
@@ -236,17 +261,25 @@ class ParticleFilter():
 
 	def get_measurement(self, v):
 		i = self.iMap.to_image(v[0], v[1])
-		ref = self.orig_img[i[0]-REF_U:i[0]+REF_U,i[1]-REF_U:i[1]+REF_U].copy()
+		ref = self.orig_img[int(i[0]-REF_U):int(i[0]+REF_U),int(i[1]-REF_U):int(i[1]+REF_U)].copy()
 		return ref
 	
 	def redraw_point(self, s, radius):
 		if (np.sign(radius) == 1):
 			row,col = self.iMap.to_image(s[0], s[1])
-			cv2.circle(self.img, (col, row), radius, (0,0,0), thickness=8)
+			cv2.circle(self.img, (int(col), int(row)), radius, (0,0,0), thickness=8)
 
 	def get_movement(self, state):
-		state[0] += int(self.control[0])
-		state[1] += int(self.control[1])
+		print('old state')
+		print(state)
+		state[0] += self.control[0] + np.random.normal(0, noise)
+		state[1] += self.control[1] + np.random.normal(0, noise)
+		print('control vector')
+		print(self.control)
+		print('new state')
+		print(state)
+		# check this returns and updates
+		return state
 
 	def redraw_world(self):
 		self.img = self.orig_img.copy()
